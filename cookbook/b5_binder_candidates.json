@@ -1,0 +1,52 @@
+{
+  "project": "B5 antibody-antigen complex binder design",
+  "date": "2026-06-03",
+  "design_method": "ESMFold2-Fast (721M) design loop, 100 steps, lr=0.5",
+  "eval_method": "ESMFold2 (1.3G) 3-loops/14-sample with confidence head",
+  "wt_baseline": {
+    "cdr_seq": "GFTFGTGSYYSSSGSSRGFTYSYYPDYRAYDF",
+    "ptm": 0.638,
+    "iptm": 0.117,
+    "cdr_to_epi_min_A": 19.08
+  },
+  "improvement_vs_wt": {
+    "iptm_ratio": 4.6,
+    "pTm_ratio": 1.25,
+    "cdr_to_epi_delta_A": -8.36
+  },
+  "candidates_above_0.5_iptm": [
+    {
+      "name": "step050",
+      "rank": 1,
+      "cdr_seq": "GLQIGYGVYMSYSGQSRVVTDSYQPIYKAPIR",
+      "full_seq": "QVQLVESGGGLVQPGGSLRLSCAASGLQIGYGVYMSLGWFRQAPGQGLEAVAAISYSGQSTYYADSVKGRFTISRDNSKNTLYLQMNSLRAEDTAVYYCAARVVTDSYQPIYKAPIRWGQGTLVTVS",
+      "ptm": 0.799,
+      "iptm": 0.538,
+      "cdr_to_epi_min_A": 10.72,
+      "inter": 0.0049,
+      "epi": 2.8
+    },
+    {
+      "name": "step070",
+      "rank": 2,
+      "cdr_seq": "GLQIGYGVYMSYSGQSRVVTDSYQPLYKAPIR",
+      "full_seq": "QVQLVESGGGLVQPGGSLRLSCAASGLQIGYGVYMSLGWFRQAPGQGLEAVAAISYSGQSTYYADSVKGRFTISRDNSKNTLYLQMNSLRAEDTAVYYCAARVVTDSYQPLYKAPIRWGQGTLVTVS",
+      "ptm": 0.789,
+      "iptm": 0.513,
+      "cdr_to_epi_min_A": 11.35,
+      "inter": 0.0067,
+      "epi": 3.36
+    },
+    {
+      "name": "step060",
+      "rank": 3,
+      "cdr_seq": "GLQIGYGVYMSYSGQSRVVTDSYQPLYKAPIR",
+      "full_seq": "QVQLVESGGGLVQPGGSLRLSCAASGLQIGYGVYMSLGWFRQAPGQGLEAVAAISYSGQSTYYADSVKGRFTISRDNSKNTLYLQMNSLRAEDTAVYYCAARVVTDSYQPLYKAPIRWGQGTLVTVS",
+      "ptm": 0.787,
+      "iptm": 0.507,
+      "cdr_to_epi_min_A": 11.23,
+      "inter": 0.0057,
+      "epi": 3.24
+    }
+  ]
+}
