@@ -172,7 +172,7 @@ High $z\sigma$ for VHH3/VHH72 reflect already-strong WT ipTM, not design improve
 
 \textbf{Ty1/RBD (6ZXN).} The Ty1 nanobody\cite{hanke2020} against SARS-CoV-2 RBD showed the largest improvement: ipTM more than tripled from \num{0.143} to \num{0.702} ($\Delta = +0.559$, 5.7$\sigma$ above random). The designed CDR (GFTLANHNPESGMGLNLAVSPD) differs from WT (GFTFSSVSPNSGNGLNLSSSSV) at 11 of 22 positions, with mutations concentrated in H2 (SPNSGN $\to$ ANHNPES) and H3 (GLNLSSSSV $\to$ GMGLNLAVSPD). The pTM improved from \num{0.622} to \num{0.823}, and CDR-to-epitope distance decreased from \SI{16.6}{\AA} to \SI{10.7}{\AA}.
 
-\textbf{KN035/PD-L1 (5JDS).} The clinically-validated KN035 nanobody\cite{zhang2017} against PD-L1 improved from \num{0.251} to \num{0.459} ($\Delta = +0.208$, 2.2$\sigma$). The designed CDR (GMMSSRRLTTSGSDQFGLPTCDHVNSSGAFQY) introduced 7 of 32 mutations while preserving the structural disulfide in H3. CDR-to-epitope distance improved from \SI{14.1}{\AA} to \SI{11.5}{\AA}. Limited mutation (21.9\%) compared to Ty1 (50\%) reflects the disulfide constraint.
+\textbf{KN035/PD-L1 (5JDS).} The clinically-validated KN035 (envafolimab) nanobody\cite{zhang2019} against PD-L1 improved from \num{0.251} to \num{0.459} ($\Delta = +0.208$, 2.2$\sigma$). The designed CDR (GMMSSRRLTTSGSDQFGLPTCDHVNSSGAFQY) introduced 7 of 32 mutations while preserving the structural disulfide in H3. CDR-to-epitope distance improved from \SI{14.1}{\AA} to \SI{11.5}{\AA}. Limited mutation (21.9\%) compared to Ty1 (50\%) reflects the disulfide constraint.
 
 \textbf{VHH72/RBD (6WAQ)} and \textbf{VHH3/TNF$\alpha$ (5M2M)} are strong WT binders (WT ipTM \num{0.776} and \num{0.672}). Design preserved ipTM ($\Delta = -0.035$ and $-0.001$), demonstrating safety---the method does not degrade optimal binders.
 
@@ -267,7 +267,13 @@ For each target, left panel: CDR-to-epitope distance vs.\ optimization step (thr
 
 We have demonstrated that epitope-targeted nanobody CDR design can be performed rapidly---\textbf{under ten minutes per target on consumer hardware}---through gradient-based optimization of the ESMFold2 distogram. Our method achieves statistically significant ipTM improvements on weak binders (up to +\num{0.559} for Ty1/RBD), preserves strong binders, requires no experimental screening or explicit docking, and provides multiple diverse candidate CDR sequences.
 
-Our approach differs fundamentally from existing methods (Table~\ref{tab:comparison}): inverse folding\cite{dauparas2022,hsu2022} requires a pre-specified backbone; RFdiffusion\cite{watson2023} generates backbones then sequences via ProteinMPNN; DiffAb\cite{luo2022} and dyMEAN\cite{kong2023} use diffusion or equivariant networks requiring GPU clusters. In contrast, our method directly optimizes CDR sequences over a continuous relaxation, using a single ESMFold2-Fast forward pass per gradient step---\textbf{60 forward/backward passes of a 721M-parameter model, tractable on a single consumer GPU or Apple MPS device}. This speed enables rapid iteration and high-throughput framework variant screening.
+\subsection{Relationship to the official ESMFold2 binder design tutorial}
+
+The official ESMFold2 codebase includes a binder design tutorial (\texttt{binder\_design.py})\cite{lin2023} that pioneered the concept of gradient-guided sequence optimization through the ESMFold2 distogram. We gratefully acknowledge this foundation, upon which EasyNano builds several critical extensions. The official tutorial performs general binder design---optimizing a binder sequence to contact a target protein at any interface---but does not support epitope-level targeting, structure priors for pose anchoring, or CDR-restricted optimization. EasyNano extends this framework with three key innovations: (1) user-specified epitope targeting via a dedicated CDR-to-epitope distance loss; (2) a Full ESMFold2 CA-coordinate structure prior that locks the framework pose during optimization, enabling de novo design without requiring a crystal structure of the complex; and (3) a wild-type-biased logit initialization ($\beta=2.0$) that eliminates the dependency on the ESMC protein language model for sequence regularization, reducing the computational footprint from cloud GPU clusters to a single consumer device. The official tutorial and EasyNano share the same core principle---backpropagating structural signals through the ESMFold2 distogram---but EasyNano focuses this capability specifically on the epitope-targeted nanobody CDR design problem.
+
+\subsection{Comparison with other computational methods}
+
+EasyNano differs fundamentally from existing methods (Table~\ref{tab:comparison}): inverse folding\cite{dauparas2022,hsu2022} requires a pre-specified backbone; RFdiffusion\cite{watson2023} generates backbones then sequences via ProteinMPNN; DiffAb\cite{luo2022} and dyMEAN\cite{kong2023} use diffusion or equivariant networks requiring GPU clusters. In contrast, our method directly optimizes CDR sequences over a continuous relaxation, using a single ESMFold2-Fast forward pass per gradient step---\textbf{60 forward/backward passes of a 721M-parameter model, tractable on a single consumer GPU or Apple MPS device}. This speed enables rapid iteration and high-throughput framework variant screening.
 
 \begin{table}[H]
 \centering
@@ -301,7 +307,7 @@ In conclusion, differentiable distogram optimization provides a fast, epitope-sp
 \section{Methods}
 
 \subsection{Target preparation}
-Five target-framework pairs were selected from the PDB: Ty1 nanobody with SARS-CoV-2 spike (6ZXN, chains D/A), KN035 with PD-L1 (5JDS, B/A), VHH72 with SARS-CoV-2 RBD (6WAQ, A/B), anti-TNF VHH with TNF$\alpha$ (5M2J, D/A), and VHH3 with TNF$\alpha$ trimer (5M2M, D/B). For 6ZXN (spike trimer, \num{1060} residues per chain), the RBD domain (residues 330--535, \num{204} residues) was extracted. Epitope residues were target residues within \SI{8}{\AA} C$\alpha$--C$\alpha$ of any nanobody heavy atom, identified via Biotite\cite{kunzmann2023}. CDR positions used Chothia numbering via abnumber\cite{al2011}.
+Five target-framework pairs were selected from the PDB: Ty1 nanobody with SARS-CoV-2 spike (6ZXN, chains D/A), KN035 with PD-L1 (5JDS, B/A), VHH72 with SARS-CoV-2 RBD (6WAQ, A/B), anti-TNF VHH with TNF$\alpha$ (5M2J, D/A), and VHH3 with TNF$\alpha$ trimer (5M2M, D/B). For 6ZXN (spike trimer, \num{1060} residues per chain), the RBD domain (residues 330--535, \num{204} residues) was extracted. Epitope residues were target residues within \SI{8}{\AA} C$\alpha$--C$\alpha$ of any nanobody heavy atom, identified via Biotite\cite{kunzmann2023}. CDR positions used Chothia numbering via abnumber\cite{al1997}.
 
 \subsection{Structure prior}
 Full ESMFold2 (1.3B)\cite{lin2023} with 3 recycling loops, 14 sampling steps, 4 diffusion samples. CA coordinates (averaged across diffusion samples) were discretized into 64 distance bins (\SIrange{2}{22}{\AA}, tolerance \SI{2.5}{\AA}).
@@ -338,95 +344,56 @@ The authors declare no competing interests.
 % ============================================================
 \begin{thebibliography}{99}
 
+% Nanobody fundamentals
 \bibitem{muyldermans2013} Muyldermans, S. Nanobodies: natural single-domain antibodies. \textit{Annu. Rev. Biochem.} \textbf{82}, 775--797 (2013).
-
 \bibitem{hamers1993} Hamers-Casterman, C. \textit{et al.} Naturally occurring antibodies devoid of light chains. \textit{Nature} \textbf{363}, 446--448 (1993).
-
 \bibitem{jovcevska2020} Jov{\v{c}}evska, I. \& Muyldermans, S. The therapeutic potential of nanobodies. \textit{BioDrugs} \textbf{34}, 11--26 (2020).
-
 \bibitem{scully2019} Scully, M. \textit{et al.} Caplacizumab treatment for acquired thrombotic thrombocytopenic purpura. \textit{N. Engl. J. Med.} \textbf{380}, 335--346 (2019).
 
+% Computational antibody design
 \bibitem{norman2020} Norman, R.A. \textit{et al.} Computational approaches to therapeutic antibody design. \textit{Brief. Bioinform.} \textbf{21}, 1549--1567 (2020).
 
-\bibitem{liu2024} Liu, Y. \textit{et al.} De novo design of programmable protein interactions. \textit{Nat. Rev. Bioeng.} (2024).
-
-\bibitem{dauparas2022} Dauparas, J. \textit{et al.} Robust deep learning--based protein sequence design using ProteinMPNN. \textit{Science} \textbf{378}, 49--56 (2022).
-
-\bibitem{hsu2022} Hsu, C. \textit{et al.} Learning inverse folding from millions of predicted structures. \textit{Proc. ICML} (2022).
-
-\bibitem{anishchenko2021} Anishchenko, I. \textit{et al.} De novo protein design by deep network hallucination. \textit{Nature} \textbf{600}, 547--552 (2021).
-
-\bibitem{watson2023} Watson, J.L. \textit{et al.} De novo design of protein structure and function with RFdiffusion. \textit{Nature} \textbf{620}, 1089--1100 (2023).
-
-\bibitem{ruffolo2023} Ruffolo, J.A. \textit{et al.} Fast, accurate antibody structure prediction from deep learning on massive set of natural antibodies. \textit{Nat. Commun.} \textbf{14}, 2389 (2023).
-
-\bibitem{ruffolo2021} Ruffolo, J.A., Gray, J.J. \& Sulam, J. Deciphering antibody affinity maturation with language models and weakly supervised learning. \textit{arXiv} (2021).
-
-\bibitem{olsen2022} Olsen, T.H., Moal, I.H. \& Deane, C.M. AbLang: an antibody language model for completing antibody sequences. \textit{Bioinform. Adv.} \textbf{2}, vbac046 (2022).
-
-\bibitem{luo2022} Luo, S. \textit{et al.} Antigen-specific antibody design and optimization with diffusion-based generative models for protein structures. \textit{Adv. Neural Inf. Process. Syst.} \textbf{35}, 9754--9767 (2022).
-
-\bibitem{kong2023} Kong, X., Huang, W. \& Liu, Y. End-to-end full-atom antibody design. \textit{Proc. ICML} (2023).
-
+% Protein structure prediction
 \bibitem{jumper2021} Jumper, J. \textit{et al.} Highly accurate protein structure prediction with AlphaFold. \textit{Nature} \textbf{596}, 583--589 (2021).
-
 \bibitem{baek2021} Baek, M. \textit{et al.} Accurate prediction of protein structures and interactions using a three-track neural network. \textit{Science} \textbf{373}, 871--876 (2021).
-
 \bibitem{lin2023} Lin, Z. \textit{et al.} Evolutionary-scale prediction of atomic-level protein structure with a language model. \textit{Science} \textbf{379}, 1123--1130 (2023).
-
-\bibitem{he2022} He, B.L. \textit{et al.} A protein language model for all domains of life. \textit{bioRxiv} (2022).
-
 \bibitem{abramson2024} Abramson, J. \textit{et al.} Accurate structure prediction of biomolecular interactions with AlphaFold 3. \textit{Nature} \textbf{630}, 493--500 (2024).
 
+% Protein and antibody design
+\bibitem{dauparas2022} Dauparas, J. \textit{et al.} Robust deep learning--based protein sequence design using ProteinMPNN. \textit{Science} \textbf{378}, 49--56 (2022).
+\bibitem{hsu2022} Hsu, C. \textit{et al.} Learning inverse folding from millions of predicted structures. \textit{Proc. ICML} (2022).
+\bibitem{anishchenko2021} Anishchenko, I. \textit{et al.} De novo protein design by deep network hallucination. \textit{Nature} \textbf{600}, 547--552 (2021).
+\bibitem{watson2023} Watson, J.L. \textit{et al.} De novo design of protein structure and function with RFdiffusion. \textit{Nature} \textbf{620}, 1089--1100 (2023).
 \bibitem{wang2022} Wang, J. \textit{et al.} Scaffolding protein functional sites using deep learning. \textit{Science} \textbf{377}, 387--394 (2022).
 
-\bibitem{ingraham2019} Ingraham, J. \textit{et al.} Generative models for graph-based protein design. \textit{Adv. Neural Inf. Process. Syst.} \textbf{32} (2019).
-
+% Antibody-specific methods
+\bibitem{ruffolo2023} Ruffolo, J.A. \textit{et al.} Fast, accurate antibody structure prediction from deep learning on massive set of natural antibodies. \textit{Nat. Commun.} \textbf{14}, 2389 (2023).
+\bibitem{ruffolo2021} Ruffolo, J.A., Gray, J.J. \& Sulam, J. Deciphering antibody affinity maturation with language models and weakly supervised learning. \textit{arXiv} (2021).
+\bibitem{olsen2022} Olsen, T.H., Moal, I.H. \& Deane, C.M. AbLang: an antibody language model for completing antibody sequences. \textit{Bioinform. Adv.} \textbf{2}, vbac046 (2022).
+\bibitem{luo2022} Luo, S. \textit{et al.} Antigen-specific antibody design and optimization with diffusion-based generative models for protein structures. \textit{Adv. Neural Inf. Process. Syst.} \textbf{35}, 9754--9767 (2022).
+\bibitem{kong2023} Kong, X., Huang, W. \& Liu, Y. End-to-end full-atom antibody design. \textit{Proc. ICML} (2023).
 \bibitem{jin2022} Jin, W. \textit{et al.} Iterative refinement graph neural network for antibody sequence-structure co-design. \textit{Proc. ICLR} (2022).
 
-\bibitem{shanker2024} Shanker, V.R. \textit{et al.} Unsupervised evolution of protein and antibody complexes with a structure-informed language model. \textit{Science} \textbf{385}, 46--53 (2024).
-
+% Nanobody structures used in this study
 \bibitem{hanke2020} Hanke, L. \textit{et al.} An alpaca nanobody neutralizes SARS-CoV-2 by blocking receptor interaction. \textit{Nat. Commun.} \textbf{11}, 4420 (2020).
-
 \bibitem{wang2021} Wang, Y. \textit{et al.} A potent neutralizing nanobody against SARS-CoV-2. \textit{Nat. Commun.} \textbf{12}, 4003 (2021).
+\bibitem{zhang2019} Zhang, F. \textit{et al.} Structural basis of a novel PD-L1 nanobody for immune checkpoint blockade. \textit{Cell Discov.} \textbf{5}, 43 (2019).
 
-\bibitem{zhang2017} Zhang, F. \textit{et al.} Structural basis of the therapeutic anti-PD-L1 antibody atezolizumab. \textit{Oncotarget} \textbf{8}, 90215 (2017).
-
-\bibitem{xiang2020} Xiang, Y. \textit{et al.} Versatile and multivalent nanobodies efficiently neutralize SARS-CoV-2. \textit{Science} \textbf{370}, 1479--1484 (2020).
-
-\bibitem{myung2024} Myung, Y. \textit{et al.} Recent advances in computational epitope prediction and antibody design. \textit{Curr. Opin. Struct. Biol.} \textbf{86}, 102808 (2024).
-
-\bibitem{kunzmann2023} Kunzmann, P. \textit{et al.} Biotite: a unifying open source computational biology framework in Python. \textit{BMC Bioinform.} \textbf{24}, 346 (2023).
-
-\bibitem{al2011} Al-Lazikani, B., Lesk, A.M. \& Chothia, C. Standard conformations for the canonical structures of immunoglobulins. \textit{J. Mol. Biol.} \textbf{273}, 927--948 (1997).
-
-\bibitem{hu2026esmfold2} Hu, Y. \textit{et al.} ESMFold2 predicted complex pose is determined by framework sequence, not diffusion initialization. (this work, internal analysis).
-
-\bibitem{pluckthun2015} Pl{\"u}ckthun, A. Designed ankyrin repeat proteins (DARPins): binding proteins for research, diagnostics, and therapy. \textit{Annu. Rev. Pharmacol. Toxicol.} \textbf{55}, 489--511 (2015).
-
-\bibitem{koide2012} Koide, A. \textit{et al.} Teaching an old scaffold new tricks: monobodies constructed using alternative surfaces of the FN3 scaffold. \textit{J. Mol. Biol.} \textbf{415}, 393--405 (2012).
-
+% Protein language models
+\bibitem{he2022} He, B.L. \textit{et al.} A protein language model for all domains of life. \textit{bioRxiv} (2022).
 \bibitem{rives2021} Rives, A. \textit{et al.} Biological structure and function emerge from scaling unsupervised learning to 250 million protein sequences. \textit{Proc. Natl. Acad. Sci.} \textbf{118}, e2016239118 (2021).
 
-\bibitem{ferruz2022} Ferruz, N. \textit{et al.} From sequence to function through structure: deep learning for protein design. \textit{Comput. Struct. Biotechnol. J.} \textbf{21}, 238--250 (2022).
+% De novo design and scaffolds
+\bibitem{liu2024} Liu, Y. \textit{et al.} De novo design of programmable protein interactions. \textit{Nat. Rev. Bioeng.} (2024).
+\bibitem{pluckthun2015} Pl{\"u}ckthun, A. Designed ankyrin repeat proteins (DARPins). \textit{Annu. Rev. Pharmacol. Toxicol.} \textbf{55}, 489--511 (2015).
+\bibitem{koide2012} Koide, A. \textit{et al.} Teaching an old scaffold new tricks: monobodies. \textit{J. Mol. Biol.} \textbf{415}, 393--405 (2012).
 
-\bibitem{khakzad2023} Khakzad, H. \textit{et al.} Structural basis of antibody-antigen interactions. \textit{Front. Immunol.} \textbf{14}, 1187235 (2023).
+% Tools
+\bibitem{kunzmann2023} Kunzmann, P. \textit{et al.} Biotite: a unifying open source computational biology framework in Python. \textit{BMC Bioinform.} \textbf{24}, 346 (2023).
+\bibitem{al1997} Al-Lazikani, B., Lesk, A.M. \& Chothia, C. Standard conformations for the canonical structures of immunoglobulins. \textit{J. Mol. Biol.} \textbf{273}, 927--948 (1997).
 
-\bibitem{raybould2019} Raybould, M.I.J. \textit{et al.} Thera-SAbDab: the Therapeutic Structural Antibody Database. \textit{Nucleic Acids Res.} \textbf{48}, D383--D388 (2019).
-
-\bibitem{madani2023} Madani, A. \textit{et al.} Large language models generate functional protein sequences across diverse families. \textit{Nat. Biotechnol.} \textbf{41}, 1099--1106 (2023).
-
-\bibitem{mariani2013} Mariani, V. \textit{et al.} lDDT: a local superposition-free score for comparing protein structures and models using distance difference tests. \textit{Bioinformatics} \textbf{29}, 2722--2728 (2013).
-
-\bibitem{zhang2004} Zhang, Y. \& Skolnick, J. Scoring function for automated assessment of protein structure template quality. \textit{Proteins} \textbf{57}, 702--710 (2004).
-
-\bibitem{akbar2022} Akbar, R. \textit{et al.} In silico proof of principle of machine learning-based antibody design at unconstrained scale. \textit{mAbs} \textbf{14}, 2031482 (2022).
-
-\bibitem{prihoda2022} Prihoda, D. \textit{et al.} BioPhi: A platform for antibody design, humanization, and humanness evaluation. \textit{PLoS Comput. Biol.} \textbf{18}, e1009873 (2022).
-
-\bibitem{adolf2024} Adolf-Bryfogle, J. \textit{et al.} RosettaAntibodyDesign (RAbD): A general framework for computational antibody design. \textit{PLoS Comput. Biol.} \textbf{20}, e1011789 (2024).
-
-\bibitem{lisanza2023} Lisanza, S.L. \textit{et al.} Joint generation of protein sequence and structure with RoseTTAFold sequence space diffusion. \textit{bioRxiv} (2023).
+% ESMFold2 pose analysis
+\bibitem{hu2026esmfold2} Hu, Y. \textit{et al.} ESMFold2 predicted complex pose is determined by framework sequence, not diffusion initialization. (this work, internal analysis).
 
 \end{thebibliography}
 
