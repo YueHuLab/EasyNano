@@ -1,2 +1,0 @@
-esm >=3.2.1post1,<4.0.0
-pytest
