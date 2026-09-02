@@ -29,20 +29,98 @@
 
 ## Installation
 
+EasyNano is the installable Python package `easynano`. There are two tiers of
+dependencies, and it is important to know the difference:
+
+- **Tier 1 — package + simple test + `setup` (verified, works everywhere).**
+  Needs only `biotite`, `abnumber`, `transformers` (standard PyPI), and a few
+  plotting libs. **No ESMFold2 weights, no GPU, and no `esmscore`.** This is the
+  part that was broken before: the repo's previous `pyproject.toml` actually
+  described a *different* package (ESM's `esm` 3.3.0), so `pip install .` installed
+  the wrong thing and `import easynano` failed with `ModuleNotFoundError`. That is
+  now fixed — `easynano` installs cleanly and the quick test below runs with
+  nothing but Tier-1 deps.
+- **Tier 2 — full `design` / `eval` / `baseline` pipeline.** These commands
+  additionally import **`esmscore`** (an internal module of EvolutionaryScale's
+  ESM) and load ESMFold2/ESMC model weights. See "Tier 2 prerequisites" below.
+
+### Step 1 — Clone and install the package (Tier 1)
+
 ```bash
-# Clone the repository
+# 1. Clone
 git clone https://github.com/YueHuLab/EasyNano.git
 cd EasyNano
 
-# Install dependencies
-pip install torch transformers biotite abnumber logomaker pandas matplotlib seaborn
+# 2. (Recommended) Python 3.10–3.12 in a fresh venv
+python -m venv .venv && source .venv/bin/activate
+pip install -U pip
 
-# ESMFold2 models are expected at:
-#   /path/to/ESMFold2-Fast   (721M, for design loop)
-#   /path/to/ESMFold2        (1.3B, for prior + evaluation)
-#   /path/to/ESMC-6B         (6B language model encoder)
-# Update MODEL_PATH / ESMC_PATH in scripts to match your paths.
+# 3. Install EasyNano + its pip-available dependencies
+pip install -e .
 ```
+
+> **No Biohub fork needed.** `transformers` on PyPI (≥ 4.45) already ships
+> `transformers.models.esmfold2`, so you do **not** need the Biohub `transformers`
+> fork or any `git+https://` install for it.
+
+### Step 2 — Quick test (Tier 1, no weights, no esmscore)
+
+```bash
+easynano setup --target ty1_rbd
+python test_quick.py
+```
+
+Both should run and print a success line (see **Quick Test** below). If they do,
+your install is correct and the package imports fine.
+
+### Step 3 — Tier 2 prerequisites (design / eval / baseline only)
+
+The `design`, `eval`, and `baseline` commands import `esmscore` inside their
+function bodies (so the rest of the package — including `setup` and `test_quick.py`
+— is unaffected). **`esmscore` is not published to PyPI** and is **not** included
+in the current `esm` PyPI package (3.4.0); `esm==3.3.0` (referenced by the old
+config) is not on PyPI either. In the authors' environment `esmscore` was available
+from a compatible ESM build. To run the full pipeline you must make `esmscore`
+importable (e.g. from a compatible ESM source/install) **before** calling those
+commands; `import esmscore` should succeed on its own first.
+
+You also need the three model directories (ESMFold2-Fast 721M, ESMFold2 1.3B,
+ESMC-6B). Point EasyNano at them with environment variables (no code edits needed):
+
+```bash
+export ESMFOLD2_FAST=/path/to/ESMFold2-Fast   # 721M, used in the design loop
+export ESMFOLD2_FULL=/path/to/ESMFold2         # 1.3B, structure prior + evaluation
+export ESMC_PATH=/path/to/ESMC-6B              # 6B encoder
+export EASYNANO_DEVICE=mps                     # mps (Apple Silicon) | cuda | cpu
+```
+
+(Defaults assume `/Users/huyue/esm-c-fold2/...`; override with the variables above
+on any machine.)
+
+## Quick Test (verify the install — no model weights needed)
+
+The `setup` command only parses a target PDB and detects CDRs, so it needs **no
+ESMFold2 weights**. It is the fastest way to confirm EasyNano imported correctly:
+
+```bash
+easynano setup --target ty1_rbd
+```
+
+Expected output ends with a line like:
+
+```
+[OK] target_len=1060 binder_len=118 n_cdr=0 n_epi=21 framework=ty1
+```
+
+If you see that line, the package, `biotite`, and `abnumber` are all working.
+A self-contained script version is provided at [`test_quick.py`](test_quick.py):
+
+```bash
+python test_quick.py
+```
+
+To run the actual design loop you must first set the model-weight environment
+variables shown above.
 
 ## Pipeline Overview
 
@@ -68,54 +146,64 @@ Stage 3: Full Model Evaluation (~15 s/candidate)
 
 ```
 EasyNano/
-├── cookbook/tutorials/
-│   ├── design_ca_prior.py       # Main v9 design loop (CA-coordinate prior)
-│   ├── design_target_prior.py   # v2 design loop (target-only prior)
-│   ├── setup_target.py          # Target setup from arbitrary PDB + epitope
-│   ├── loss_functions.py        # Core loss functions (epitope, prior, contacts)
-│   ├── sweep_parameters.py      # Parameter sweep runner
-│   ├── evaluate_designs.py      # Batch Full ESMFold2 evaluation
-│   ├── evaluate_snapshots.py    # Per-target snapshot evaluation
-│   ├── random_baseline.py       # Random CDR baseline generation
-│   ├── validate_rmsd.py         # Kabsch RMSD cross-validation
-│   ├── plot_figures.py          # Manuscript figure generation
-│   ├── plot_cdr_logos.py        # CDR sequence logo generation
-│   ├── analyze_losses.py        # Loss function analysis
-│   └── run_designs_*.sh         # Batch design runners
-├── manuscript/
-│   ├── main.tex / main.pdf      # Preprint manuscript
-│   ├── supplementary.*          # Supplementary information
-│   └── figures/                 # All manuscript figures (PDF)
-├── test/                        # Target PDB files (6 targets)
-├── pyproject.toml
+├── easynano/                   # Installable Python package (pip install -e .)
+│   ├── cli.py                  # Command-line entry point: `easynano`
+│   ├── config.py               # Model paths, design defaults, target registry
+│   ├── setup.py               # Target PDB parsing, epitope/CDR detection
+│   ├── design.py              # v9 differentiable CDR design loop
+│   ├── evaluate.py            # Full ESMFold2 evaluation
+│   ├── loss.py                # Loss functions (epitope, prior, contacts)
+│   ├── baseline.py            # Random CDR baselines
+│   └── analyze.py             # Developability / supplementary analyses
+├── cookbook/tutorials/         # Standalone tutorial scripts (mirror the package)
+│   ├── design_target_v9.py     # Main v9 design loop (CA-coordinate prior)
+│   ├── design_target.py        # v2 design loop (target-only prior)
+│   ├── test_target_pdb.py      # Target setup from arbitrary PDB + epitope
+│   ├── loss_functions.py       # Core loss functions
+│   ├── eval_all_targets.py     # Batch Full ESMFold2 evaluation
+│   ├── eval_target_snapshots.py# Per-target snapshot evaluation
+│   ├── random_baseline.py      # Random CDR baseline generation
+│   ├── rmsd_validation.py      # Kabsch RMSD cross-validation
+│   ├── make_figures.py         # Manuscript figure generation
+│   ├── make_cdr_logos.py       # CDR sequence logo generation
+│   ├── analyze_b5_losses.py    # Loss function analysis
+│   └── run_v9_batch*.sh        # Batch design runners
+├── manuscript/                 # Preprint (main.tex/pdf, supplementary, figures)
+├── test/                       # Target PDB files (6 targets)
+├── test_quick.py               # Simple install smoke test (no weights needed)
+├── pyproject.toml             # Package metadata (name = "easynano")
 └── LICENSE
 ```
 
 ## Quick Start
 
+> **Prerequisite:** set the model-weight environment variables (see *Installation* above).
+> Without them, `design`/`eval` will fail to load ESMFold2.
+
 ```bash
-# 1. Setup target from PDB
-python cookbook/tutorials/setup_target.py \
-    --target-pdb test/5JDS.pdb --target-chain A \
-    --auto-detect-binder B --framework kn035
+# Point EasyNano at your ESMFold2 weights (replace with your paths)
+export ESMFOLD2_FAST=/path/to/ESMFold2-Fast
+export ESMFOLD2_FULL=/path/to/ESMFold2
+export ESMC_PATH=/path/to/ESMC-6B
+export EASYNANO_DEVICE=mps          # mps (Apple Silicon) | cuda | cpu
 
-# 2. Run v9 design (CA-coordinate prior)
-python cookbook/tutorials/design_ca_prior.py \
-    --target-pdb test/5JDS.pdb --target-chain A \
-    --epitope-indices "36,38,43,45,48,50,97,98,99,101,102,103,104,105" \
-    --framework kn035 --wt-logit 2.0 --w-prior 0.05 \
-    --steps 60 --seed 0 --allow-cdr-cys
+# 1. Setup target (no weights needed — safe to run first)
+easynano setup --target kn035_pdl1
 
-# 3. Evaluate designs with Full ESMFold2
-python cookbook/tutorials/evaluate_designs.py \
-    --n-top 3 --out /tmp/eval_results.json
+# 2. Run v9 design (CA-coordinate prior) — needs weights
+easynano design --target kn035_pdl1 --steps 5 --seed 0
 
-# 4. Run random baselines
-python cookbook/tutorials/random_baseline.py \
-    --target-pdb test/5JDS.pdb --target-chain A \
-    --epitope-indices "36,38,43,45,48,50,97,98,99,101,102,103,104,105" \
-    --framework kn035 --n-random 30 --out /tmp/baseline.json
+# 3. Evaluate top candidates with Full ESMFold2 — needs weights
+easynano eval --target kn035_pdl1 \
+    --snapshots results/kn035_pdl1/seed0_snapshots.json --n-top 3
+
+# 4. (Optional) random CDR baselines for significance testing — needs weights
+easynano baseline --target kn035_pdl1 --n-random 30
 ```
+
+All commands accept `--target <name>` from the built-in registry (see *Targets Evaluated*)
+or explicit `--pdb/--chain/--epitope-indices/--framework` overrides. Run
+`easynano <command> --help` for every flag.
 
 ## Key Parameters
 

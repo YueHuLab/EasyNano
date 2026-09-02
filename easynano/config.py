@@ -6,6 +6,11 @@ All paths can be overridden via environment variables.
 import os
 from pathlib import Path
 
+# Repo root = parent of the ``easynano`` package directory.
+# Used to resolve the bundled ``test/*.pdb`` sample files so commands work
+# regardless of the current working directory.
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
 # ---------------------------------------------------------------------------
 # Model paths (set env vars or edit defaults)
 # ---------------------------------------------------------------------------
@@ -130,6 +135,13 @@ TARGETS: dict[str, dict] = {
         "allow_cdr_cys": False,
     },
 }
+
+# Resolve bundled sample PDB paths relative to the repo root so that
+# ``easynano setup --target <name>`` works from any working directory.
+for _t in TARGETS.values():
+    _p = _t.get("pdb")
+    if _p and not os.path.isabs(_p):
+        _t["pdb"] = str(REPO_ROOT / _p)
 
 # Loss weights dict (used by loss.py, overridden per-run)
 LOSS_WEIGHTS: dict[str, float] = {
