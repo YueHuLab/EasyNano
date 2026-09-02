@@ -1,31 +1,34 @@
-esm.egg-info
-.pixi
-*.egg-info
-*.pyc
+# Python
 __pycache__/
-.DS_Store
-# Session transcripts
-2026-*.txt
-# LaTeX temp
-*.aux
-*.out
-*.log
-*.toc
-*.blg
-*.bbl
+*.py[cod]
+*.egg-info/
+*.egg
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
 # IDE
 .vscode/
 .idea/
-.claude/
-# Temp
-/tmp/
-*.tmp
-/tmp/
-# Model weights (too large)
-*checkpoint*
+*.swp
+.DS_Store
+
+# Test / runtime artifacts
+results/
+*.log
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Model weights — never commit (large, auth-gated)
+ESMFold2-Fast/
+ESMFold2/
+ESMC-6B/
 *.safetensors
+*.ckpt
 *.bin
-# Lock
-pixi.lock
-# Large test files
-test/*.pdb
+*.pt
+*.gguf

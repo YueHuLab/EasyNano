@@ -1,6 +1,7 @@
 """Unified command-line interface for EasyNano.
 
 Usage:
+    easynano check                            # preflight: imports + weights
     easynano setup   --target ty1_rbd
     easynano design  --target ty1_rbd --seeds 0 1 2
     easynano eval    --target ty1_rbd --snapshots results/seed0_snapshots.json
@@ -13,8 +14,9 @@ from __future__ import annotations
 
 import sys
 import argparse
+import os
 
-from .config import TARGETS
+from .config import TARGETS, ESMFOLD2_FAST, ESMFOLD2_FULL, ESMC_PATH, DEVICE
 
 
 def _get_target(name: str) -> dict:
@@ -28,6 +30,92 @@ def _parse_epitope(cfg: dict) -> list[int]:
     if isinstance(cfg["epitope"], str):
         return [int(x) for x in cfg["epitope"].split(",") if x.strip()]
     return list(cfg["epitope"])
+
+
+def cmd_check(args):
+    """Preflight: verify Python imports + model weight paths so that
+    `easynano design` will actually run, not just `import easynano`."""
+    ok, warn = [], []
+
+    def _try(label, fn):
+        try:
+            fn()
+            ok.append(label)
+        except Exception as e:  # noqa: BLE001
+            warn.append(f"{label}: {type(e).__name__}: {e}")
+
+    # 1) easynano itself
+    def _easynano():
+        import easynano
+        assert easynano.__version__
+    _try("easynano", _easynano)
+
+    # 2) esmscore vendored + all 4 submodules
+    def _esmscore():
+        import esmscore
+        from esmscore.score_only import _patch_for_mps, score_only_forward
+        from esmscore._complex import build_complex_features
+        from esmscore._pdb import build_pdb_coords
+        from esmscore._pdb_writer import to_pdb
+    _try("esmscore (vendored)", _esmscore)
+
+    # 3) transformers.models.esmfold2 (PyPI transformers >= 4.45 ships this;
+    #    no Biohub fork required)
+    def _esmfold2():
+        from transformers.models.esmfold2.configuration_esmfold2 import ESMFold2Config
+        from transformers.models.esmfold2.modeling_esmfold2 import (
+            ESMFold2Model, gather_rep_atom_coords,
+        )
+        from transformers.models.esmfold2.protein_utils import (
+            prepare_protein_features, PROTEIN_1TO3,
+        )
+    _try("transformers.models.esmfold2", _esmfold2)
+
+    # 4) runtime deps
+    def _deps():
+        import torch, numpy, pandas  # noqa: F401
+        try:
+            import biotite  # noqa: F401
+        except ImportError:
+            import biotite.structure  # noqa: F401
+        import abnumber  # noqa: F401
+    _try("runtime deps (torch/numpy/pandas/biotite/abnumber)", _deps)
+
+    # 5) model weights (env vars + dirs exist)
+    weights = [
+        ("ESMFOLD2_FAST", ESMFOLD2_FAST),
+        ("ESMFOLD2_FULL", ESMFOLD2_FULL),
+        ("ESMC_PATH", ESMC_PATH),
+    ]
+    for name, val in weights:
+        if not val:
+            warn.append(f"{name}: env var not set (no weights)")
+        elif not os.path.isdir(val):
+            warn.append(f"{name}={val!r}: directory does not exist")
+        else:
+            ok.append(f"{name} -> {val}")
+
+    print("=" * 60)
+    print("easynano preflight check")
+    print("=" * 60)
+    print(f"DEVICE = {DEVICE}")
+    print("\n[OK]")
+    for x in ok:
+        print(f"  ✓ {x}")
+    if warn:
+        print("\n[MISSING / FAILED]")
+        for x in warn:
+            print(f"  ✗ {x}")
+        print("\nTo enable design/eval/baseline, download weights from")
+        print("https://evolutionaryscale.ai and export:")
+        print("  export ESMFOLD2_FAST=/path/to/ESMFold2-Fast   # 721M")
+        print("  export ESMFOLD2_FULL=/path/to/ESMFold2        # 1.3B")
+        print("  export ESMC_PATH=/path/to/ESMC-6B            # 6B encoder")
+        print("\nOnce all four [OK] groups pass, `easynano design` will run.")
+    else:
+        print("\nAll checks passed. `easynano design` is ready to run.")
+    print("=" * 60)
+    sys.exit(1 if warn else 0)
 
 
 def cmd_setup(args):
@@ -255,9 +343,14 @@ Examples:
     p_run.add_argument("--n-random", type=int, default=30)
     p_run.add_argument("--allow-cdr-cys", action="store_true")
 
+    # check (preflight)
+    p_check = sub.add_parser("check", help="Preflight: verify imports + model weights")
+
     args = parser.parse_args()
 
-    if args.command == "setup":
+    if args.command == "check":
+        cmd_check(args)
+    elif args.command == "setup":
         cmd_setup(args)
     elif args.command == "design":
         cmd_design(args)

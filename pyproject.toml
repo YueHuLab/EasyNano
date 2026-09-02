@@ -4,28 +4,31 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "easynano"
-version = "1.0.0"
-description = "Epitope-targeted nanobody CDR design with ESMFold2 differentiable distogram optimization"
+version = "2.0.0"
+description = "Epitope-targeted nanobody CDR design with ESMFold2 differentiable distogram optimization (esmscore vendored)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {file = "LICENSE.md"}
-
 authors = [
   {name = "YueHuLab"},
 ]
-
-# Runtime dependencies that are cleanly installable from PyPI.
+# All runtime deps are public. `esmscore` is vendored into this repo as a
+# top-level `esmscore/` package, so `pip install -e .` makes `import esmscore`
+# work out of the box — no separate install, no sys.path hack.
 #
-# NOTE — `esmscore` is intentionally NOT listed here. It is an internal module
-# of EvolutionaryScale's ESM that is NOT published to PyPI (and is absent from
-# the current `esm` PyPI package). Listing it would make `pip install -e .`
-# fail. The `design` / `eval` / `baseline` commands import `esmscore` *inside*
-# the function body, so they are the only ones that need it — and only after
-# the user has made `esmscore` importable in their environment (see README).
-#
-# `transformers` on PyPI (>=4.5x) already ships `transformers.models.esmfold2`,
-# so the Biohub transformers fork is NOT required.
+# IMPORTANT — the ESMFold2 model code:
+# `transformers.models.esmfold2` (ESMFold2Config / ESMFold2Model /
+# gather_rep_atom_coords / protein_utils) is NOT in the standard HuggingFace
+# `transformers` PyPI package. It is provided by the PUBLIC Biohub fork of
+# transformers at github.com/Biohub/transformers (commit 3a8956f, the same
+# pin used by EvolutionaryScale's own `esm` package). We depend on that fork
+# directly so any user gets a working `easynano design` after `pip install -e .`.
+# Standard PyPI `transformers` (4.x or 5.x) does NOT ship esmfold2, and the
+# PyPI `esm` package's `esm.models.esmfold2` uses a different (camelCase)
+# API that esmscore is not written against.
 dependencies = [
+  # Biohub transformers fork — provides transformers.models.esmfold2
+  "transformers @ git+https://github.com/Biohub/transformers.git@3a8956fb4d4ea16b0ec8e71deef2c2909b6a5cbf",
   "torch>=2.2.0",
   "biotite>=1.0.0",
   "abnumber",
@@ -34,15 +37,6 @@ dependencies = [
   "numpy",
   "matplotlib",
   "seaborn",
-  "transformers>=4.45",
-]
-
-[project.optional-dependencies]
-# Heavy / GPU-only extras. Not required for install or the simple test.
-# `esmscore` cannot be pinned here (not on PyPI); install it separately per
-# the README "Full pipeline prerequisites" section.
-design = [
-  "transformers>=4.45",
 ]
 
 [project.scripts]
@@ -50,4 +44,4 @@ easynano = "easynano.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["easynano*"]
+include = ["easynano*", "esmscore*"]

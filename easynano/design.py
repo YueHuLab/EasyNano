@@ -26,7 +26,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 from .config import (
-    ESMFOLD2_FAST, ESMFOLD2_FULL, ESMC_PATH, DEVICE, ESM_REPO,
+    ESMFOLD2_FAST, ESMFOLD2_FULL, ESMC_PATH, DEVICE, check_weights,
     N_STEPS, LR, WT_LOGIT, W_EPITOPE, W_INTRA, W_INTER, W_GLOB,
     W_PRIOR, W_AA_FREQ, TEMP_MIN, LOG_EVERY, SNAPSHOT_EVERY,
     SAMPLE_STEPS, N_LOOPS, FULL_LOOPS, FULL_SAMPLING, FULL_DIFFUSION,
@@ -39,7 +39,8 @@ from .loss import (
 )
 from .setup import setup_target_design
 
-sys.path.insert(0, ESM_REPO)
+# `esmscore` is vendored into this repo (top-level `esmscore/` package), so
+# `from esmscore...` resolves through the installed package — no sys.path hack.
 
 _CA_NAME_CODE = (ord('C') - 32, ord('A') - 32, 0, 0)
 
@@ -48,6 +49,7 @@ _CA_NAME_CODE = (ord('C') - 32, ord('A') - 32, 0, 0)
 
 def load_fast_model():
     """Load ESMFold2-Fast (721M) for the design loop."""
+    check_weights(["ESMFOLD2_FAST", "ESMC_PATH"])
     print(f"Loading ESMFold2-Fast from {ESMFOLD2_FAST} ...", flush=True)
     t0 = time.time()
     from transformers.models.esmfold2.configuration_esmfold2 import ESMFold2Config
@@ -70,6 +72,7 @@ def load_fast_model():
 
 def load_full_model():
     """Load Full ESMFold2 (1.3B) for structure prior prediction."""
+    check_weights(["ESMFOLD2_FULL", "ESMC_PATH"])
     print("Loading FULL ESMFold2 (1.3B) for prior prediction ...", flush=True)
     t0 = time.time()
     from transformers.models.esmfold2.configuration_esmfold2 import ESMFold2Config

@@ -6,19 +6,50 @@ All paths can be overridden via environment variables.
 import os
 from pathlib import Path
 
-# Repo root = parent of the ``easynano`` package directory.
-# Used to resolve the bundled ``test/*.pdb`` sample files so commands work
-# regardless of the current working directory.
-REPO_ROOT = Path(__file__).resolve().parent.parent
-
 # ---------------------------------------------------------------------------
-# Model paths (set env vars or edit defaults)
+# Model paths — set via env vars (no hardcoded machine defaults).
+# Download weights from EvolutionaryScale (https://evolutionaryscale.ai):
+#   ESMFold2-Fast (721M, used in the design loop)
+#   ESMFold2      (1.3B, structure prior + evaluation)
+#   ESMC-6B       (6B sequence encoder backing ESMFold2)
 # ---------------------------------------------------------------------------
-ESMFOLD2_FAST = os.environ.get("ESMFOLD2_FAST", "/Users/huyue/esm-c-fold2/ESMFold2-Fast")
-ESMFOLD2_FULL = os.environ.get("ESMFOLD2_FULL", "/Users/huyue/esm-c-fold2/ESMFold2")
-ESMC_PATH     = os.environ.get("ESMC_PATH", "/Users/huyue/esm-c-fold2/ESMC-6B")
+ESMFOLD2_FAST = os.environ.get("ESMFOLD2_FAST")
+ESMFOLD2_FULL = os.environ.get("ESMFOLD2_FULL")
+ESMC_PATH     = os.environ.get("ESMC_PATH")
 DEVICE        = os.environ.get("EASYNANO_DEVICE", "mps")
-ESM_REPO      = os.environ.get("ESM_REPO", "/Users/huyue/esm-c-fold2")
+
+# `esmscore` is now vendored into this repo (top-level `esmscore/` package).
+# No ESM_REPO env var, no sys.path.insert needed — `import esmscore` works
+# as soon as `pip install -e .` has been run.
+
+
+def check_weights(required: list[str]) -> None:
+    """Raise SystemExit with a clear message if any required weight path is
+    missing or points to a non-existent directory.
+
+    Args:
+        required: list of config attribute names, e.g. ["ESMFOLD2_FAST","ESMC_PATH"].
+    """
+    import os
+    g = globals()
+    missing = []
+    for name in required:
+        val = g.get(name)
+        if not val:
+            missing.append(f"{name} (env var '{name}' not set)")
+        elif not os.path.isdir(val):
+            missing.append(f"{name}={val!r} (directory does not exist)")
+    if missing:
+        raise SystemExit(
+            "\n[EASYNANO] Missing ESMFold2/ESMC model weights:\n  - "
+            + "\n  - ".join(missing)
+            + "\n\nDownload the three weight directories from "
+              "https://evolutionaryscale.ai and export them:\n"
+              "  export ESMFOLD2_FAST=/path/to/ESMFold2-Fast   # 721M, design loop\n"
+              "  export ESMFOLD2_FULL=/path/to/ESMFold2        # 1.3B, prior + eval\n"
+              "  export ESMC_PATH=/path/to/ESMC-6B            # 6B encoder\n"
+              "Then re-run. See README 'Model weights' section.\n"
+        )
 
 # ---------------------------------------------------------------------------
 # Design defaults (manuscript sweet spot — see PARAMETER_SWEEP_FINDINGS.md)
@@ -136,14 +167,10 @@ TARGETS: dict[str, dict] = {
     },
 }
 
-# Resolve bundled sample PDB paths relative to the repo root so that
-# ``easynano setup --target <name>`` works from any working directory.
-for _t in TARGETS.values():
-    _p = _t.get("pdb")
-    if _p and not os.path.isabs(_p):
-        _t["pdb"] = str(REPO_ROOT / _p)
-
-# Loss weights dict (used by loss.py, overridden per-run)
+# Loss weights dict (used by loss.py as the default before design.py applies
+# the runtime CLI overrides --w-epitope / --w-prior / etc.).
+# Values match the manuscript "sweet spot": wt_logit=2.0, w_prior=0.05, 60 steps
+# (see PARAMETER_SWEEP_FINDINGS.md and run_v9_batch.sh).
 LOSS_WEIGHTS: dict[str, float] = {
     "intra_contact": 0.5,
     "inter_contact": 0.5,

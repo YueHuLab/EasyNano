@@ -19,17 +19,18 @@ import numpy as np
 import torch
 
 from .config import (
-    ESMFOLD2_FULL, ESMC_PATH, DEVICE, ESM_REPO,
+    ESMFOLD2_FULL, ESMC_PATH, DEVICE, check_weights,
     FULL_LOOPS, FULL_SAMPLING,
     N_BINS, MIN_DIST, MAX_DIST,
 )
 from .loss import get_mid_points, compute_structure_losses
 from .setup import setup_target_design
 
-sys.path.insert(0, ESM_REPO)
+# `esmscore` is vendored into this repo — no sys.path hack needed.
 
 
 def load_model():
+    check_weights(["ESMFOLD2_FULL", "ESMC_PATH"])
     print(f"Loading Full ESMFold2 from {ESMFOLD2_FULL} ...", flush=True)
     from transformers.models.esmfold2.configuration_esmfold2 import ESMFold2Config
     from transformers.models.esmfold2.modeling_esmfold2 import ESMFold2Model
