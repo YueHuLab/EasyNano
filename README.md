@@ -144,3 +144,5 @@ and the ESMFold2 / ESMC papers from EvolutionaryScale.
 See `LICENSE.md`. The vendored `esmscore/` is included for reproducibility;
 respect any upstream licensing for the ESMFold2 model weights (separate
 download from EvolutionaryScale).
+## another model download site 
+You can also download the old model of ESMFold2 for https://modelscope.cn/datasets/vortex5566/easynanoModel/files 
